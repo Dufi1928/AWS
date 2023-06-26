@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { PutObjectCommand, S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3Client,DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import '../src/App.css'
 
 function App() {
     const [objects, setObjects] = useState([]);
@@ -36,6 +37,53 @@ function App() {
         fetchS3Objects();
     }, []);
 
+    const handleFileDownload = async (fileName) => {
+        const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
+        const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
+
+        const client = new S3Client({
+            region: 'eu-west-3',
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            }
+        });
+
+        const command = new GetObjectCommand({
+            Bucket: 'ezytech-mds',
+            Key: fileName
+        });
+
+        try {
+            const response = await client.send(command);
+            const stream = response.Body;
+
+            const reader = stream.getReader();
+            const chunks = [];
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    break;
+                }
+
+                chunks.push(value);
+            }
+
+            const blob = new Blob(chunks, { type: response.ContentType });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     const handleDragOver = (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -54,6 +102,31 @@ function App() {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         setSelectedFile(file);
+    };
+    const handleFileDelete = async (fileName) => {
+        const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
+        const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
+
+        const client = new S3Client({
+            region: 'eu-west-3',
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            }
+        });
+
+        const command = new DeleteObjectCommand({
+            Bucket: 'ezytech-mds',
+            Key: fileName
+        });
+
+        try {
+            await client.send(command);
+            // Après avoir supprimé le fichier avec succès, mettez à jour la liste des objets
+            setObjects(objects.filter(object => object !== fileName));
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const handleFileUpload = async () => {
@@ -92,14 +165,14 @@ function App() {
     };
 
     return (
-        <div style={{ display: 'flex', width: '100%',  justifyContent: 'space-between' }}> {/* Ajout d'un conteneur avec display: flex */}
+        <div className="container-wrapper">
             <div
                 ref={dropAreaRef}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={(e) => e.preventDefault()}
-                style={{ width: '50%' }} // Largeur fixée à 50%
+                className="left-grid"
             >
                 <span>Glissez-déposez un fichier ici</span>
                 {selectedFile && (
@@ -113,11 +186,19 @@ function App() {
                     ref={fileInputRef}
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
+                    className="button-drag-drop"
                 />
             </div>
-            <ul style={{ width: '50%' }}> {/* Largeur fixée à 50% */}
+            <ul className="right-grid">
                 {objects.map((object) => (
-                    <li key={object}>{object}</li>
+                    <li key={object} className="download">
+                        <button className="mybt" onClick={() => handleFileDownload(object)}>
+                            {object}
+                        </button>
+                        <button className="mybt" onClick={() => handleFileDelete(object)}>
+                            Supprimer
+                        </button>
+                    </li>
                 ))}
             </ul>
         </div>
