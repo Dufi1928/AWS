@@ -1,12 +1,73 @@
 import { useEffect, useRef, useState } from 'react';
-import { GetObjectCommand, S3Client,DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import '../src/App.css'
+import { GetObjectCommand,CreateBucketCommand , S3Client, DeleteObjectCommand, ListObjectsV2Command,ListBucketsCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+
+import './App.scss'
 
 function App() {
     const [objects, setObjects] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedBucket, setSelectedBucket] = useState('ezytech-mds');
     const dropAreaRef = useRef(null);
     const fileInputRef = useRef(null);
+    const [buckets, setBuckets] = useState([]);
+    const [newBucketName, setNewBucketName] = useState('');
+
+    const createBucket = async () => {
+        const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
+        const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
+
+        const client = new S3Client({
+            region: 'eu-west-3',
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            }
+        });
+
+        const command = new CreateBucketCommand({
+            Bucket: newBucketName,
+        });
+
+        try {
+            const response = await client.send(command);
+            console.log(`Bucket ${newBucketName} created successfully.`);
+            // Ajouter le nouveau bucket à la liste
+            setBuckets((prevBuckets) => [...prevBuckets, newBucketName]);
+            // Réinitialiser le nom du nouveau bucket
+            setNewBucketName('');
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    useEffect(() => {
+        const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
+        const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
+
+        const fetchS3Objects = async () => {
+            const client = new S3Client({
+                region: 'eu-west-3',
+                credentials: {
+                    accessKeyId: accessKeyId,
+                    secretAccessKey: secretAccessKey
+                }
+            });
+
+            const command = new ListObjectsV2Command({
+                Bucket: selectedBucket,
+            });
+
+            try {
+                const response = await client.send(command);
+                const s3Objects = response.Contents ? response.Contents.map((object) => object.Key) : [];
+                setObjects(s3Objects);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        fetchS3Objects();
+    }, [selectedBucket]);
 
     useEffect(() => {
         const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
@@ -28,6 +89,7 @@ function App() {
             try {
                 const response = await client.send(command);
                 const s3Objects = response.Contents.map((object) => object.Key);
+                console.log(response)
                 setObjects(s3Objects);
             } catch (err) {
                 console.error(err);
@@ -35,8 +97,32 @@ function App() {
         };
 
         fetchS3Objects();
+        fetchBuckets();
     }, []);
 
+    const fetchBuckets = async () => {
+        const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
+        const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
+
+        const client = new S3Client({
+            region: 'eu-west-3',
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey:
+                secretAccessKey
+            }
+        });
+
+        const command = new ListBucketsCommand({});
+
+        try {
+            const response = await client.send(command);
+            const bucketNames = response.Buckets.map((bucket) => bucket.Name);
+            setBuckets(bucketNames);
+        } catch (err) {
+            console.error(err);
+        }
+    };
     const handleFileDownload = async (fileName) => {
         const accessKeyId = import.meta.env.VITE_ACCES_KEY_ID;
         const secretAccessKey = import.meta.env.VITE_SECRET_ACCES_KEY;
@@ -50,7 +136,7 @@ function App() {
         });
 
         const command = new GetObjectCommand({
-            Bucket: 'ezytech-mds',
+            Bucket: selectedBucket,
             Key: fileName
         });
 
@@ -116,13 +202,13 @@ function App() {
         });
 
         const command = new DeleteObjectCommand({
-            Bucket: 'ezytech-mds',
+            Bucket: selectedBucket,
             Key: fileName
         });
 
+
         try {
             await client.send(command);
-            // Après avoir supprimé le fichier avec succès, mettez à jour la liste des objets
             setObjects(objects.filter(object => object !== fileName));
         } catch (err) {
             console.error(err);
@@ -146,14 +232,15 @@ function App() {
             reader.onload = async () => {
                 const body = new Uint8Array(reader.result);
                 const command = new PutObjectCommand({
-                    Bucket: 'ezytech-mds',
+                    Bucket: selectedBucket, // Remplacer 'ezytech-mds' par selectedBucket
                     Key: selectedFile.name,
                     Body: body,
                 });
 
+
                 try {
-                    const response = await client.send(command);
-                    console.log(response);
+                    await client.send(command);
+                    setObjects((prevObjects) => [...prevObjects, selectedFile.name]);
                     setSelectedFile(null);
                 } catch (err) {
                     console.error(err);
@@ -163,6 +250,7 @@ function App() {
             reader.readAsArrayBuffer(selectedFile);
         }
     };
+
 
     return (
         <div className="container-wrapper">
@@ -184,23 +272,43 @@ function App() {
                 <input
                     type="file"
                     ref={fileInputRef}
-                    style={{ display: 'none' }}
                     onChange={handleFileChange}
                     className="button-drag-drop"
                 />
             </div>
-            <ul className="right-grid">
-                {objects.map((object) => (
-                    <li key={object} className="download">
-                        <button className="mybt" onClick={() => handleFileDownload(object)}>
-                            {object}
-                        </button>
-                        <button className="mybt" onClick={() => handleFileDelete(object)}>
-                            Supprimer
-                        </button>
-                    </li>
-                ))}
-            </ul>
+            <div className="bukets">
+                <div className="select">
+                    <label>Select Bucket: </label>
+                    <select value={selectedBucket} onChange={(e) => setSelectedBucket(e.target.value)}>
+                        {buckets.map((bucket) => (
+                            <option key={bucket} value={bucket}>{bucket}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="add">
+                    <input
+                        value={newBucketName}
+                        onChange={(e) => setNewBucketName(e.target.value)}
+                        placeholder="Enter new bucket name"
+                    />
+                    <button onClick={createBucket}>Create</button>
+                </div>
+            </div>
+
+            <div className="right-grid">
+                <ul>
+                    {objects.map((object) => (
+                        <li key={object} className="download">
+                            <button className="mybt-download" onClick={() => handleFileDownload(object)}>
+                                {object}
+                            </button>
+                            <button className="mybt-delete" onClick={() => handleFileDelete(object)}>
+                                Supprimer
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 }

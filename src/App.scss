@@ -1,0 +1,108 @@
+*{
+  font-family: "Arial", sans-serif;
+}
+ul {
+  margin: 0;
+}
+input{
+  border-radius: 3px;
+  border: none;
+  margin-right: 15px;
+  padding: 10px;
+}
+
+button{
+  border-radius: 3px;
+  border: none;
+  padding: 10px;
+  &:hover{
+    background-color: #F2DEA2;
+  }
+}
+li{
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+body{
+  background-color: grey;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.container-wrapper{
+  margin-top: 35px;
+  background-color: #F2C4DE;
+  padding: 20px;
+  border-radius: 15px;
+  display: flex;
+  width: 98% !important;
+  justify-content: space-evenly;
+  .left-grid{
+    width: 40%;
+    align-items: center;
+    display: flex;
+    .button-drag-drop{
+      display: none;
+    }
+  }
+  .bukets{
+    align-items: flex-start;
+    display: flex;
+    padding: 35px;
+    flex-direction: column;
+    justify-content: center;
+    select{
+      width: 45%;
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+  }
+  .right-grid{
+    justify-content: space-between;
+    align-items: center;
+    display: flex;
+    width: 50%;
+    ul{
+      width: 100%;
+      .download{
+        width: 100%;
+        margin-bottom: 15px;
+        .mybt-download{
+          background-color: #F2CDC4;
+          &:hover{
+            background-color: #F2DEA2;
+          }
+        }
+        .mybt-delete{
+          background-color: #71B1D9;
+          &:hover{
+            background-color: #AED8F2;
+          }
+        }
+      }
+    }
+  }
+
+  .add{
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .select{
+    justify-content: space-between;
+    label{
+      width: 40%;
+    }
+    select{
+      width: 60%;
+      border: none;
+      border-radius: 5px;
+      padding:15px;
+      &:focus {
+        outline: none;
+      }
+    }
+  }
+}
